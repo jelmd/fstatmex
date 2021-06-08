@@ -71,6 +71,7 @@ static struct option options[] = {
 	{"hole-size",			no_argument,		NULL, 'Z'},
 	{"addr",				required_argument,	NULL, 'a'},
 	{"compact",				no_argument,		NULL, 'c'},
+	{"depth",				no_argument,		NULL, 'd'},
 	{"help",				no_argument,		NULL, 'h'},
 	{"label",				required_argument,	NULL, 'l'},
 	{"metrics",				no_argument,		NULL, 'm'},
@@ -82,7 +83,7 @@ static struct option options[] = {
 };
 
 static const char *shortUsage = {
-	"[-ACLSVZchms] [-a ip] [-l label=value] [-p port] [-o file] [-v DEBUG|INFO|WARN|ERROR|FATAL] dir ..."
+	"[-ACLSVZchms] [-a ip] [-d depth] [-l label=value] [-p port] [-o file] [-v DEBUG|INFO|WARN|ERROR|FATAL] dir ..."
 };
 
 static struct {
@@ -684,6 +685,15 @@ checkopts(int argc, char **argv) {
 				break;
 			case 'c':
 				global.promflags |= PROM_COMPACT;
+				break;
+			case 'd':
+				if ((sscanf(optarg, "%u", &i) != 1) || i > 512) {
+					fprintf(stderr, "Invalid depth '%s'. Should be <= 512\n",
+						optarg);
+					err++;
+				} else {
+					global.prom_depth = i;
+				}
 				break;
 			case 'h':
 				fprintf(stderr, "Usage: %s %s\n", argv[0], shortUsage);

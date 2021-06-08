@@ -118,6 +118,20 @@ option they will be ommitted in the HTTP response and thus it saves
 bandwith and processing time.
 
 .TP
+.BI \-d\  num
+.PD 0
+.TP
+.BI \-\-depth= num
+The depth of detail. Any directory entry with a depth greater than \fInum\fR
+gets handled/accounted as would it belong to its predecessor with the given
+depth. E.g. if the starting directory is /var/tmp and depth == 2, then
+all directory entries of /var/tmp/metric would be counted to metrics
+with the label \fBdir="\fRmetrics\fB"\fR, but all entries in and
+beneath /var/tmp/metrics/test (i.e. /var/tmp/metrics/test/* and
+/var/tmp/metrics/test/**/*) would be pushed to the metrics with
+label \fBdir="\fRmetrics/test\fB"\fR. Default: \fB4\fR
+
+.TP
 .B \-h
 .PD 0
 .TP
@@ -152,6 +166,7 @@ its work before it terminates.
 .BI \-\-logfile= file
 Log all messages to the given \fIfile\fR when the main process is running.
 
+.TP
 .BI \-p " num"
 .PD 0
 .TP
