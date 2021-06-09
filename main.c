@@ -40,8 +40,6 @@
 
 #define TOTAL_KEY "#overall#"		// so sort moves it to the start
  
-int req_seen = 0;				// our "mutex" for starting the work
-
 static const char *stype[] = {
 	"???", "FIFO", "CHR", "???",
 	"DIR", "???", "BLK", "???",
@@ -87,6 +85,9 @@ static const char *shortUsage = {
 };
 
 static struct {
+	int req_seen;				// our "mutex" for starting the work
+	bool shutdown;				// tell MHD-daemon to ignore requests
+
 	bool anonym;
 	bool show_specials;
 	bool hole_check;
@@ -104,7 +105,6 @@ static struct {
 	char *label_value;
 	prom_counter_t *req_counter;
 	prom_counter_t *res_counter;
-	prom_counter_t *file_counter;
 	prom_counter_t *sparse_counter;
 	prom_counter_t *link_counter;
 	prom_counter_t *dir_counter;
@@ -112,6 +112,8 @@ static struct {
 	prom_histogram_t *fsz_hist;
 	prom_histogram_t *ssz_hist;
 } global = {
+	.req_seen = 0,
+	.shutdown = false,
 	.anonym = false,
 	.show_specials = false,
 	.hole_check = false,
@@ -129,7 +131,6 @@ static struct {
 	.label_value = NULL,
 	.req_counter = NULL,
 	.res_counter = NULL,
-	.file_counter = NULL,
 	.sparse_counter = NULL,
 	.link_counter = NULL,
 	.dir_counter = NULL,
@@ -164,10 +165,10 @@ static int
 setupProm(void) {
 	static const char *keys[] = { NULL, NULL };
 	prom_collector_t* pc = NULL;
-	prom_counter_t *reqc, *resc, *filec, *linkc, *dirc, *miscc, *sparsec;
+	prom_counter_t *reqc, *resc, *linkc, *dirc, *miscc, *sparsec;
 	prom_histogram_t *fsz_hist = NULL, *ssz_hist = NULL;
 	phb_t *fbuckets = NULL, *sbuckets = NULL;
-	reqc = resc = filec = linkc = dirc = miscc = sparsec = NULL;
+	reqc = resc = linkc = dirc = miscc = sparsec = NULL;
 	int key_len = 1;
 
 	if (pcr_init(global.promflags, "fstatex_"))
@@ -201,14 +202,6 @@ setupProm(void) {
 	resc = NULL;
 
 	keys[0] = "dir";
-	if ((global.file_counter = prom_counter_new("files",
-		"Number of regular files beneath a directory (includes sparse files).",
-		key_len, keys)) == NULL)
-		goto fail;
-	filec = global.file_counter;
-	if (pcr_register_metric(global.file_counter))
-		goto fail;
-	filec = NULL;
 
 	if ((global.sparse_counter = prom_counter_new("sparsefiles",
 		"Number of sparse files beneath a directory.", key_len, keys)) == NULL)
@@ -232,7 +225,7 @@ setupProm(void) {
 	dirc = global.dir_counter;
 	if (pcr_register_metric(global.dir_counter))
 		goto fail;
-	filec = NULL;
+	dirc = NULL;
 
 	// S_ISFIFO |S_ISCHR |S_ISBLK |S_ISBLK |S_ISSOCK |S_ISDOOR |S_ISPORT
 	if ((global.misc_counter = prom_counter_new("miscs",
@@ -247,7 +240,7 @@ setupProm(void) {
 
 	if ((fbuckets = phb_exponential(512, 2, 24)) == NULL)
 		goto fail;
-	if ((global.fsz_hist = prom_histogram_new("filesize_bytes",
+	if ((global.fsz_hist = prom_histogram_new("file_bytes",
 		"total size of files (st_size) beneath a directory in bytes.",
 		fbuckets, key_len, keys)) == NULL)
 		goto fail;
@@ -258,7 +251,7 @@ setupProm(void) {
 	
 	if ((sbuckets = phb_exponential(32, 2, 30)) == NULL)
 		goto fail;
-	if ((global.ssz_hist = prom_histogram_new("sparsesize_bytes",
+	if ((global.ssz_hist = prom_histogram_new("sparse_bytes",
 		"total size of holes per file of files beneath a directory in bytes.",
 		sbuckets, key_len, keys)) == NULL)
 		goto fail;
@@ -276,8 +269,6 @@ fail:
 		prom_counter_destroy(reqc);
 	if (resc != NULL)
 		prom_counter_destroy(resc);
-	if (filec != NULL)
-		prom_counter_destroy(filec);
 	if (sparsec != NULL)
 		prom_counter_destroy(sparsec);
 	if (linkc != NULL)
@@ -336,8 +327,8 @@ http_handler(void *cls, struct MHD_Connection *connection, const char *url,
 	enum MHD_ResponseMemoryMode mode = MHD_RESPMEM_PERSISTENT;
 	unsigned int status = MHD_HTTP_BAD_REQUEST;
 	static const char *labels[] = { "" };
-	static char *RESP[] = { NULL, NULL, NULL };
-	static int rlen[] = { 0, 0, 0 };
+	static char *RESP[] = { NULL, NULL, NULL, NULL };
+	static int rlen[] = { 0, 0, 0, 0 };
 
 	int ret;
 
@@ -348,9 +339,16 @@ http_handler(void *cls, struct MHD_Connection *connection, const char *url,
 		rlen[1] = strlen(RESP[1]);
 		RESP[2]= prom_strdup("Bad Request\n");
 		rlen[2] = strlen(RESP[2]);
+		RESP[3]= prom_strdup("Shutdown in progress\n");
+		rlen[3] = strlen(RESP[3]);
 	}
 
-	if (strcmp(method, "GET") != 0) {
+	if (global.shutdown) {
+		body = RESP[3];
+		len = rlen[3];
+		labels[0] = "shutdown";
+		mode = MHD_HTTP_NO_RESPONSE;
+	} else if (strcmp(method, "GET") != 0) {
 		body = RESP[0];
 		len = rlen[0];
 		labels[0] = "other";
@@ -384,7 +382,7 @@ http_handler(void *cls, struct MHD_Connection *connection, const char *url,
 		prom_counter_add(global.res_counter, len, labels);
 		ret = MHD_queue_response(connection, status, response);
 		MHD_destroy_response(response);
-		req_seen++;
+		global.req_seen++;
 	}
 	return ret;
 }
@@ -549,8 +547,6 @@ visit(char *path, size_t remain, uint32_t depth, size_t *sparsefiles, char *key)
 				free(newkey);
 		} else if (S_ISREG(st.st_mode)) {
 			if (global.prom_enabled) {
-				prom_counter_inc(global.file_counter, labels);
-				prom_counter_inc(global.file_counter, total_labels);
 				prom_histogram_observe(global.fsz_hist,st.st_size,labels);
 				prom_histogram_observe(global.fsz_hist,st.st_size,total_labels);
 			}
@@ -562,7 +558,8 @@ visit(char *path, size_t remain, uint32_t depth, size_t *sparsefiles, char *key)
 						perror(path);
 				} else if (o != st.st_size) {
 					(*sparsefiles)++;
-					if (global.prom_enabled) {
+					if (global.prom_enabled && !global.hole_sz) {
+						// for histograms see  spares_bytes_count
 						prom_counter_inc(global.sparse_counter, labels);
 						prom_counter_inc(global.sparse_counter, total_labels);
 					}
@@ -798,7 +795,7 @@ main(int argc, char **argv) {
 		if (err == SMF_EXIT_OK) {
 			// wait for the first connect before starting the work
 			PROM_INFO("Waiting for %d metric requests ...", 2);
-			while (req_seen < 2)
+			while (global.req_seen < 2)
 				sleep(1);
 			PROM_INFO("Starting the scanner ...", "");
 		}
@@ -829,6 +826,8 @@ main(int argc, char **argv) {
 				sparsefiles, sz);
 		else if (global.hole_check)
 			fprintf(stdout, "Total %ld sparse files.\n", sparsefiles);
+		fflush(stdout);
+		fflush(stderr);
 	}
 
 	if (global.prom_enabled && err == SMF_EXIT_OK) {
@@ -838,7 +837,11 @@ main(int argc, char **argv) {
 			sleep(10);
 			fprintf(stderr, ".");
 		}
-		fprintf(stderr, "\n");
+		fprintf(stderr, "\nShutdown initiated. Gracetime 10s ...\n");
+		global.shutdown = true;
+		sleep(10);	// give it some time to finish response
+		MHD_stop_daemon(global.daemon);
+		fprintf(stderr, "Done.\n");
 		cleanupProm();
 	}
 	free(global.addr);
