@@ -10,7 +10,7 @@
 *tar.gz
 .vscode
 core
-fstatex
+fstatmex
 
 # Prerequisites
 *.d

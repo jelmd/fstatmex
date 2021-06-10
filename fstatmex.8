@@ -1,13 +1,13 @@
-.TH fstatex 8 "2021-06-08"
+.TH fstatmex 8 "2021-06-08"
 
 .SH "NAME"
-fstatex \- a directory scanner with prometheus format export support.
+fstatmex \- a directory scanner with prometheus format export support.
 
 .SH "SYNOPSIS"
 .nh
 .na
 .HP
-.B fstatex
+.B fstatmex
 [\fB\-ACLSVZchms\fR]
 [\fB\-a\ \fIip\fR]
 [\fB\-l\ \fIlabel=value\fR]
@@ -19,7 +19,7 @@ dir ...
 .hy
 
 .SH "DESCRIPTION"
-.B fstatex
+.B fstatmex
 is simple directory scanner with the primary goal to find sparse files.
 However, since it goes through the whole directory tree and stats every entry,
 it got enhanced to be able to collect file sizes, file/directory/link counts
@@ -36,12 +36,12 @@ related metrics set to its name. If the given or default tree depth has
 been reached, any entries beneath this directory are handled as the would
 be direct entries of this directory and thus not counted separately. So one
 can control the detail level, how much metrics get created, which has a
-direct impact on the memory usage of \fBfstatex\fR.
+direct impact on the memory usage of \fBfstatmex\fR.
 
 
 .SH "OPTIONS"
 
-The following options are supported by \fBfstatex\fR, but metric related ones
+The following options are supported by \fBfstatmex\fR, but metric related ones
 get silently ignored unless metrics are enabled (see option -m):
 
 .TP 4
@@ -78,7 +78,7 @@ gets honored.
 Disable recording the scrapetime of each collector separately. There is
 one collector named \fBdefault\fR, which collects HTTP request/response
 and scanner statistics, the optional \fBprocess\fR collector, which records
-metrics about the \fBfstatex\fR process itself, and finally the \fBlibprom\fR
+metrics about the \fBfstatmex\fR process itself, and finally the \fBlibprom\fR
 collector, which just records the time it took to collect and prom-format the
 data of all the collectors mentioned before.
 
@@ -87,7 +87,7 @@ data of all the collectors mentioned before.
 .PD 0
 .TP
 .B \-\-version
-Show the current \fBfstatex\fR version and exit.
+Show the current \fBfstatmex\fR version and exit.
 
 .TP
 .B \-Z
@@ -156,7 +156,7 @@ Enable metrics and the HTTP server to expose them. The scanner will wait
 for two metrics request (per default e.g. http://localhost:8080/metrics)
 before the scanner starts running. This way one can be sure that metric
 collectors like VictoriaMetrics Agent etc. do not miss any data. For the
-same reason \fBfstatex\fR waits 5 minutes after the the scanner has finished
+same reason \fBfstatmex\fR waits 5 minutes after the the scanner has finished
 its work before it terminates.
 
 .TP
@@ -180,7 +180,7 @@ below 1024 usually requires additional privileges. Default: 8080.
 .TP
 .B \-\-show-specials
 Use this option to print the filenames of special entries, i.e. neither
-file, directory, or link, which are collected in the \fBfstatex_misc\fR metrics,
+file, directory, or link, which are collected in the \fBfstatmex_misc\fR metrics,
 to stdout.
 
 
@@ -220,10 +220,10 @@ level will be used.
 
 
 .SH "BUGS"
-https://github.com/jelmd/fstatex is the official source code repository
-for \fBfstatex\fR.  If you need some new features, or metrics, or bug fixes,
+https://github.com/jelmd/fstatmex is the official source code repository
+for \fBfstatmex\fR.  If you need some new features, or metrics, or bug fixes,
 please feel free to create an issue there using
-https://github.com/jelmd/fstatex/issues .
+https://github.com/jelmd/fstatmex/issues .
 
 .SH "AUTHORS"
 Jens Elkner

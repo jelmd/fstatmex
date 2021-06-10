@@ -6,7 +6,7 @@
  * See  https://spdx.org/licenses/CDDL-1.1.html  for the specific
  * language governing permissions and limitations under the License.
  *
- * Copyright 2021 Jens Elkner (jel+fstatex-src@cs.ovgu.de)
+ * Copyright 2021 Jens Elkner (jel+fstatmex-src@cs.ovgu.de)
  */
 #include <getopt.h>
 #include <arpa/inet.h>
@@ -171,7 +171,7 @@ setupProm(void) {
 	reqc = resc = linkc = dirc = miscc = sparsec = NULL;
 	int key_len = 1;
 
-	if (pcr_init(global.promflags, "fstatex_"))
+	if (pcr_init(global.promflags, "fstatmex_"))
 		return 1;
 
 	if (global.label_name != NULL) {
@@ -651,8 +651,9 @@ checkopts(int argc, char **argv) {
 				global.promflags &= ~PROM_SCRAPETIME_ALL;
 				break;
 			case 'V':
-				fputs("fstatex Version " VERSION
-					"\n(C) 2021 Jens Elkner (jel+fstatex@cs.uni-magdeburg.de\n",
+				fputs("fstatmex Version " VERSION
+					"\n(C) 2021 Jens Elkner "
+					"(jel+fstatmex@cs.uni-magdeburg.de\n",
 					stdout);
 				return 0;
 			case 'Z':

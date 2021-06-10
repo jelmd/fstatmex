@@ -52,7 +52,7 @@ RPATH_OPT := $(RPATH_OPT_$(CC))
 
 LIBCFLAGS = $(CFLAGS) $(LDFLAGS) -lc
 
-PROGS= fstatex
+PROGS= fstatmex
 
 PROGSRCS = main.c
 PROGOBJS = $(PROGSRCS:%.c=%.o) 
